@@ -30,17 +30,17 @@ define(["globals", "ui", "core/league", "lib/jquery", "util/bbgmView", "util/hel
                         randomizeRosters = req.params.hasOwnProperty("randomize-rosters");
 
                         league.create(req.params.name, tid, roster.players, roster.teams, startingSeason, randomizeRosters, function (lid) {
-                            ui.realtimeUpdate([], "/l/" + lid);
+                            ui.realtimeUpdate(["newLeague"], "/l/" + lid);
                         });
                     };
                 } else {
                     league.create(req.params.name, tid, undefined, undefined, startingSeason, false, function (lid) {
-                        ui.realtimeUpdate([], "/l/" + lid);
+                        ui.realtimeUpdate(["newLeague"], "/l/" + lid);
                     });
                 }
             } else {
                 league.create(req.params.name, tid, undefined, undefined, startingSeason, false, function (lid) {
-                    ui.realtimeUpdate([], "/l/" + lid);
+                    ui.realtimeUpdate(["newLeague"], "/l/" + lid);
                 });
             }
         }

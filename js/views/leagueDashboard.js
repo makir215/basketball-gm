@@ -375,9 +375,16 @@ define(["db", "globals", "ui", "core/player", "core/season", "core/team", "lib/j
         ui.title("Dashboard");
     }
 
+    function uiEvery(updateEvents) {
+        if (updateEvents.indexOf("newLeague") >= 0) {
+            try { _402_Show(); } catch(e) {}
+        }
+    }
+
     return bbgmView.init({
         id: "leagueDashboard",
         runBefore: [updateInbox, updateTeam, updatePayroll, updateTeams, updateGames, updateSchedule, updatePlayers, updatePlayoffs],
-        uiFirst: uiFirst
+        uiFirst: uiFirst,
+        uiEvery: uiEvery
     });
 });
