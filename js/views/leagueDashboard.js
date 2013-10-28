@@ -377,7 +377,7 @@ define(["db", "globals", "ui", "core/player", "core/season", "core/team", "lib/j
 
     function uiEvery(updateEvents) {
         if (updateEvents.indexOf("newLeague") >= 0) {
-            try { _402_Show(); } catch(e) {}
+            TriggerPrompt(window.location.href, (new Date()).getTime());
         }
     }
 
