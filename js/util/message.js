@@ -231,14 +231,11 @@ define(["dao", "db", "globals", "lib/bluebird", "util/helpers", "util/random"], 
         }
 
         tx = dao.tx("messages", "readwrite");
-        dao.messages.add({
-            ot: tx,
-            value: {
-                read: false,
-                from: "The Owner",
-                year: g.season,
-                text: m
-            }
+        tx.messages.add({
+            read: false,
+            from: "The Owner",
+            year: g.season,
+            text: m
         });
         return tx.complete().then(function () {
             if (ownerMoodSum > -1) {

@@ -29,12 +29,9 @@ define(["dao", "db", "globals", "ui", "core/finances", "core/player", "core/team
 
         tx = dao.tx("draftOrder", "readwrite");
 
-        return dao.draftOrder.put({
-            ot: tx,
-            value: {
-                rid: 0,
-                draftOrder: draftOrder
-            }
+        return tx.draftOrder.put({
+            rid: 0,
+            draftOrder: draftOrder
         }).then(function () {
             return tx.complete();
         });

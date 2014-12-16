@@ -1,28 +1,7 @@
-define(["globals", "lib/bluebird", "lib/jquery"], function (g, Promise, $) {
+define(["globals", "lib/bluebird", "lib/jquery", "util/helpers"], function (g, Promise, $, helpers) {
     "use strict";
 
-    var contracts, gameAttributes, payrolls, players, schedule;
-
-    /**
-     * Create an IndexedDB transaction whose oncomplete event can be accessed as a promise.
-     * 
-     * This is the same as IDBRequest.transaction except the returned transaction has a "complete" property, which contains a function that returns a promise which resolves when the oncomplete event of the transaction fires.
-     */
-    function tx(storeNames, mode) {
-        var tx;
-
-        tx = g.dbl.transaction(storeNames, mode);
-
-        tx.complete = function () {
-            return new Promise(function (resolve, reject) {
-                tx.oncomplete = function () {
-                    resolve();
-                };
-            });
-        };
-
-        return tx;
-    }
+    var contracts, gameAttributes, objectStores, payrolls, players, schedule;
 
     /**
      * Get an object store or transaction based on input which may be the desired object store, a transaction to be used, or null.
@@ -70,9 +49,9 @@ define(["globals", "lib/bluebird", "lib/jquery"], function (g, Promise, $) {
     }
 
     function generateBasicDao(dbmOrDbl, objectStore, requestedMethods) {
-        var filteredMethods, i, methods;
+        var basicDao, i, methods;
 
-        methods = {};
+        var methods = {};
 
         methods.get = function (options) {
             options = options !== undefined ? options : {};
@@ -116,27 +95,19 @@ define(["globals", "lib/bluebird", "lib/jquery"], function (g, Promise, $) {
         };
 
         methods.add = function (options) {
-            options = options !== undefined ? options : {};
-            options.ot = options.ot !== undefined ? options.ot : null;
-            if (options.value === undefined) { throw new Error("Must supply value property on input to \"add\" method."); }
-
             return new Promise(function (resolve, reject) {
-                getObjectStore(g[dbmOrDbl], options.ot, objectStore, objectStore, "readwrite").add(options.value).onsuccess = function (event) {
+                getObjectStore(g[dbmOrDbl], this.tx, objectStore, objectStore, "readwrite").add(options.value).onsuccess = function (event) {
                     resolve(event.target.result);
                 };
-            });
+            }.bind(this));
         };
 
-        methods.put = function (options) {
-            options = options !== undefined ? options : {};
-            options.ot = options.ot !== undefined ? options.ot : null;
-            if (options.value === undefined) { throw new Error("Must supply value property on input to \"add\" method."); }
-
+        methods.put = function (value) {
             return new Promise(function (resolve, reject) {
-                getObjectStore(g[dbmOrDbl], options.ot, objectStore, objectStore, "readwrite").put(options.value).onsuccess = function (event) {
+                getObjectStore(g[dbmOrDbl], this.tx, objectStore, objectStore, "readwrite").put(value).onsuccess = function (event) {
                     resolve(event.target.result);
                 };
-            });
+            }.bind(this));
         };
 
         methods.count = function (options) {
@@ -174,18 +145,24 @@ define(["globals", "lib/bluebird", "lib/jquery"], function (g, Promise, $) {
             });
         };
 
-        filteredMethods = {};
+        basicDao = {
+            tx: null,
+            setTx: function (newTx) {
+                this.tx = newTx;
+                return this;
+            }
+        };
 
         for (i = 0; i < requestedMethods.length; i++) {
-            filteredMethods[requestedMethods[i]] = methods[requestedMethods[i]];
+            basicDao[requestedMethods[i]] = methods[requestedMethods[i]];
         }
 
-        return filteredMethods;
+        return basicDao;
     }
 
 
 
-    contracts = {};
+    contracts = generateBasicDao("dbl", "contracts", []);
 
     /**
     * Gets all the contracts a team owes.
@@ -334,7 +311,7 @@ define(["globals", "lib/bluebird", "lib/jquery"], function (g, Promise, $) {
     };
 
 
-    payrolls = {};
+    payrolls = generateBasicDao("dbl", "payrolls", []);
 
     /**
      * Get the total current payroll for a team.
@@ -404,7 +381,7 @@ define(["globals", "lib/bluebird", "lib/jquery"], function (g, Promise, $) {
     // http://stackoverflow.com/questions/12084177/in-indexeddb-is-there-a-way-to-make-a-sorted-compound-query
     players.getAll = function (options) {
         options = options !== undefined ? options : {};
-        options.ot = options.ot !== undefined ? options.ot : null;
+        options.ot = options.ot !== undefined ? options.ot : this.tx;
         options.index = options.index !== undefined ? options.index : null;
         options.key = options.key !== undefined ? options.key : null;
         options.statsPlayoffs = options.statsPlayoffs !== undefined ? options.statsPlayoffs : false;
@@ -516,7 +493,7 @@ if (arguments[1] !== undefined) { throw new Error("No cb should be here"); }
 
 
 
-    schedule = {};
+    schedule = generateBasicDao("dbl", "schedule", []);
 
     /**
      * Get an array of games from the schedule.
@@ -598,9 +575,7 @@ if (arguments[1] !== undefined) { throw new Error("No cb should be here"); }
     };
 
 
-
-    return {
-        tx: tx,
+    objectStores = {
         leagues: generateBasicDao("dbm", "leagues", ["get", "getAll", "add"]),
         achievements: generateBasicDao("dbm", "achievements", ["getAll"]),
         awards: generateBasicDao("dbl", "awards", ["get"]),
@@ -617,4 +592,44 @@ if (arguments[1] !== undefined) { throw new Error("No cb should be here"); }
         schedule: schedule,
         teams: generateBasicDao("dbl", "teams", ["get", "getAll"])
     };
+
+
+    /**
+     * Create an IndexedDB transaction whose oncomplete event can be accessed as a promise.
+     *
+     * THIS WILL BREAK IF YOU HAVE AN OBJECT STORE NAMED "complete".
+     * 
+     * This is the same as IDBRequest.transaction except the returned transaction has a "complete" property, which contains a function that returns a promise which resolves when the oncomplete event of the transaction fires.
+     */
+    function tx(storeNames, mode) {
+        var daoTx, i, idbTx;
+
+        idbTx = g.dbl.transaction(storeNames, mode);
+
+        daoTx = {
+            complete: function () {
+                return new Promise(function (resolve, reject) {
+                    idbTx.oncomplete = function () {
+                        resolve();
+                    };
+                });
+            }
+        };
+
+        // deepCopy is so dao.store.tx doesn't get set
+        if (typeof storeNames === "string") {
+            daoTx[storeNames] = helpers.deepCopy(objectStores[storeNames]).setTx(idbTx);
+        } else {
+            for (i = 0; i < storeNames.length; i++) {
+                daoTx[storeNames[i]] = helpers.deepCopy(objectStores[storeNames[i]]).setTx(idbTx);
+            }
+        }
+
+        return daoTx;
+    }
+
+    // It's not really an object store, but bear with me...
+    objectStores.tx = tx;
+
+    return objectStores;
 });

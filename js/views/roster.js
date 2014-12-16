@@ -38,15 +38,11 @@ define(["dao", "db", "globals", "ui", "core/player", "core/team", "lib/bluebird"
         tx = dao.tx("players", "readwrite");
 
         updateRosterOrder = function (pid, rosterOrder) {
-            return dao.players.get({
-                ot: tx,
+            return tx.players.get({
                 key: pid
             }).then(function (p) {
                 p.rosterOrder = rosterOrder;
-                return dao.players.put({
-                    ot: tx,
-                    value: p
-                });
+                return tx.players.put(p);
             });
         };
 

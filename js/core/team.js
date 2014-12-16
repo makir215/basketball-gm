@@ -1243,7 +1243,7 @@ console.log(dv);*/
         var checkRosterSize, minFreeAgents, tx, userTeamSizeError;
 
         checkRosterSize = function (tid) {
-            dao.players.getAll({ot: tx, index: "tid", key: tid}).then(function (players) {
+            tx.players.getAll({index: "tid", key: tid}).then(function (players) {
                 var i, numPlayersOnRoster, p;
 
                 numPlayersOnRoster = players.length;
@@ -1290,7 +1290,7 @@ console.log(dv);*/
 
         userTeamSizeError = null;
 
-        dao.players.getAll({ot: tx, index: "tid", key: g.PLAYER.FREE_AGENT}).then(function (players) {
+        tx.players.getAll({index: "tid", key: g.PLAYER.FREE_AGENT}).then(function (players) {
             var i;
 
             // List of free agents looking for minimum contracts, sorted by value. This is used to bump teams up to the minimum roster size.
