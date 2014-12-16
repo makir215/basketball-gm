@@ -94,9 +94,9 @@ define(["globals", "lib/bluebird", "lib/jquery", "util/helpers"], function (g, P
             });
         };
 
-        methods.add = function (options) {
+        methods.add = function (value) {
             return new Promise(function (resolve, reject) {
-                getObjectStore(g[dbmOrDbl], this.tx, objectStore, objectStore, "readwrite").add(options.value).onsuccess = function (event) {
+                getObjectStore(g[dbmOrDbl], this.tx, objectStore, objectStore, "readwrite").add(value).onsuccess = function (event) {
                     resolve(event.target.result);
                 };
             }.bind(this));
@@ -493,7 +493,7 @@ if (arguments[1] !== undefined) { throw new Error("No cb should be here"); }
 
 
 
-    schedule = generateBasicDao("dbl", "schedule", []);
+    schedule = generateBasicDao("dbl", "schedule", ["add"]);
 
     /**
      * Get an array of games from the schedule.
@@ -578,54 +578,58 @@ if (arguments[1] !== undefined) { throw new Error("No cb should be here"); }
     objectStores = {
         leagues: generateBasicDao("dbm", "leagues", ["get", "getAll", "add"]),
         achievements: generateBasicDao("dbm", "achievements", ["getAll"]),
-        awards: generateBasicDao("dbl", "awards", ["get"]),
+        awards: generateBasicDao("dbl", "awards", ["get", "add"]),
         contracts: contracts,
-        draftOrder: generateBasicDao("dbl", "draftOrder", ["get", "put"]),
+        draftOrder: generateBasicDao("dbl", "draftOrder", ["get", "add", "put"]),
+        draftPicks: generateBasicDao("dbl", "draftPicks", ["add"]),
         events: generateBasicDao("dbl", "events", ["getAll"]),
         gameAttributes: gameAttributes,
-        games: generateBasicDao("dbl", "games", ["count"]),
+        games: generateBasicDao("dbl", "games", ["count", "add"]),
         messages: generateBasicDao("dbl", "messages", ["getAll", "add"]),
-        negotiations: generateBasicDao("dbl", "negotiations", ["get", "getAll", "count", "delete", "clear"]),
+        negotiations: generateBasicDao("dbl", "negotiations", ["get", "getAll", "count", "add", "delete", "clear"]),
         payrolls: payrolls,
         players: players,
-        playoffSeries: generateBasicDao("dbl", "playoffSeries", ["get"]),
+        playerStats: generateBasicDao("dbl", "playerStats", ["add"]),
+        playoffSeries: generateBasicDao("dbl", "playoffSeries", ["get", "add"]),
+        releasedPlayers: generateBasicDao("dbl", "releasedPlayers", ["add"]),
         schedule: schedule,
-        teams: generateBasicDao("dbl", "teams", ["get", "getAll"])
+        teams: generateBasicDao("dbl", "teams", ["get", "getAll", "add"]),
+        trade: generateBasicDao("dbl", "trade", ["add"])
     };
 
 
     /**
      * Create an IndexedDB transaction whose oncomplete event can be accessed as a promise.
      *
-     * THIS WILL BREAK IF YOU HAVE AN OBJECT STORE NAMED "complete".
+     * THIS WILL BREAK IF YOU HAVE AN OBJECT STORE NAMED "complete" or anything on the IDB transaction object.
+     *
+     * EVENTUALLY should hide idbTx, rather than exposing all its properties. Create another object daoTx with complete and storeNames on it. But can't do that until all transaction crap in codebase is gone.
      * 
      * This is the same as IDBRequest.transaction except the returned transaction has a "complete" property, which contains a function that returns a promise which resolves when the oncomplete event of the transaction fires.
      */
     function tx(storeNames, mode) {
-        var daoTx, i, idbTx;
+        var i, idbTx;
 
         idbTx = g.dbl.transaction(storeNames, mode);
 
-        daoTx = {
-            complete: function () {
-                return new Promise(function (resolve, reject) {
-                    idbTx.oncomplete = function () {
-                        resolve();
-                    };
-                });
-            }
+        idbTx.complete = function () {
+            return new Promise(function (resolve, reject) {
+                idbTx.oncomplete = function () {
+                    resolve();
+                };
+            });
         };
 
         // deepCopy is so dao.store.tx doesn't get set
         if (typeof storeNames === "string") {
-            daoTx[storeNames] = helpers.deepCopy(objectStores[storeNames]).setTx(idbTx);
+            idbTx[storeNames] = helpers.deepCopy(objectStores[storeNames]).setTx(idbTx);
         } else {
             for (i = 0; i < storeNames.length; i++) {
-                daoTx[storeNames[i]] = helpers.deepCopy(objectStores[storeNames[i]]).setTx(idbTx);
+                idbTx[storeNames[i]] = helpers.deepCopy(objectStores[storeNames[i]]).setTx(idbTx);
             }
         }
 
-        return daoTx;
+        return idbTx;
     }
 
     // It's not really an object store, but bear with me...

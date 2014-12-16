@@ -4,6 +4,12 @@ DB CHANGES SINCE 3.4.0
 THE FLATTENING
 --------------
 
+THIS TX. STUFF is not necessary and probably should be reverted until a later time. then, do it in a backwards compatible manner, not waterfall
+
+PROBLEM: If there is a function that optionally accepts a transaction (like team.filter), how does it know whether to call stuff off tx (which could be null) or dao? even if we set through some getObjectStore function, could that fail when chaining?
+  don't think chaining would be a problem. would just need to set a default in every function, like with getObjectStore
+    fix league creation and that'll kind of be proven right
+
 instead of dao.os.whatever({ot: aaa}) why not do tx.os.whatever()?
   then can get rid of {value: } for put and add! and options.ot in general!
   how to pass tx to object store functions?

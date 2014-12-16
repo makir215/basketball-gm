@@ -62,13 +62,11 @@ define(["dao", "db", "globals", "ui", "core/draft", "core/finances", "core/playe
 
         // Record in meta db
         return dao.leagues.add({
-            value: {
-                name: name,
-                tid: tid,
-                phaseText: phaseText,
-                teamName: teams[tid].name,
-                teamRegion: teams[tid].region
-            }
+            name: name,
+            tid: tid,
+            phaseText: phaseText,
+            teamName: teams[tid].name,
+            teamRegion: teams[tid].region
         }).then(function (lid) {
             g.lid = lid;
 
@@ -126,18 +124,18 @@ define(["dao", "db", "globals", "ui", "core/draft", "core/finances", "core/playe
             var i, j, t, round, scoutingRank, teamStore, toMaybeAdd, tx;
 
             // Probably is fastest to use this transaction for everything done to create a new league
-            tx = g.dbl.transaction(["draftPicks", "draftOrder", "players", "playerStats", "teams", "trade", "releasedPlayers", "awards", "schedule", "playoffSeries", "negotiations", "messages", "games"], "readwrite");
+            tx = dao.tx(["draftPicks", "draftOrder", "players", "playerStats", "teams", "trade", "releasedPlayers", "awards", "schedule", "playoffSeries", "negotiations", "messages", "games"], "readwrite");
 
             // Draft picks for the first 4 years, as those are the ones can be traded initially
             if (leagueFile.hasOwnProperty("draftPicks")) {
                 for (i = 0; i < leagueFile.draftPicks.length; i++) {
-                    tx.objectStore("draftPicks").add(leagueFile.draftPicks[i]);
+                    tx.draftPicks.add(leagueFile.draftPicks[i]);
                 }
             } else {
                 for (i = 0; i < 4; i++) {
                     for (t = 0; t < g.numTeams; t++) {
                         for (round = 1; round <= 2; round++) {
-                            tx.objectStore("draftPicks").add({
+                            tx.draftPicks.add({
                                 tid: t,
                                 originalTid: t,
                                 round: round,
@@ -151,10 +149,10 @@ define(["dao", "db", "globals", "ui", "core/draft", "core/finances", "core/playe
             // Initialize draft order object store for later use
             if (leagueFile.hasOwnProperty("draftOrder")) {
                 for (i = 0; i < leagueFile.draftOrder.length; i++) {
-                    tx.objectStore("draftOrder").add(leagueFile.draftOrder[i]);
+                    tx.draftOrder.add(leagueFile.draftOrder[i]);
                 }
             } else {
-                tx.objectStore("draftOrder").add({
+                tx.draftOrder.add({
                     rid: 1,
                     draftOrder: []
                 });
@@ -164,7 +162,7 @@ define(["dao", "db", "globals", "ui", "core/draft", "core/finances", "core/playe
             teamStore = tx.objectStore("teams");
             for (i = 0; i < g.numTeams; i++) {
                 t = team.generate(teams[i]);
-                teamStore.add(t);
+                tx.teams.add(t);
 
                 // Save scoutingRank for later
                 if (i === g.userTid) {
@@ -174,10 +172,10 @@ define(["dao", "db", "globals", "ui", "core/draft", "core/finances", "core/playe
 
             if (leagueFile.hasOwnProperty("trade")) {
                 for (i = 0; i < leagueFile.trade.length; i++) {
-                    tx.objectStore("trade").add(leagueFile.trade[i]);
+                    tx.trade.add(leagueFile.trade[i]);
                 }
             } else {
-                tx.objectStore("trade").add({
+                tx.trade.add({
                     rid: 0,
                     teams: [
                         {
@@ -199,7 +197,7 @@ define(["dao", "db", "globals", "ui", "core/draft", "core/finances", "core/playe
             for (j = 0; j < toMaybeAdd.length; j++) {
                 if (leagueFile.hasOwnProperty(toMaybeAdd[j])) {
                     for (i = 0; i < leagueFile[toMaybeAdd[j]].length; i++) {
-                        tx.objectStore(toMaybeAdd[j]).add(leagueFile[toMaybeAdd[j]][i]);
+                        tx[toMaybeAdd[j]].add(leagueFile[toMaybeAdd[j]][i]);
                     }
                 }
             }
@@ -211,7 +209,7 @@ define(["dao", "db", "globals", "ui", "core/draft", "core/finances", "core/playe
                     var createUndrafted1, createUndrafted2, createUndrafted3, i;
 
                     // Use a new transaction so there is no race condition with generating draft prospects and regular players (PIDs can seemingly collide otherwise, if it's an imported roster)
-                    tx = g.dbl.transaction(["players", "playerStats"], "readwrite");
+                    tx = dao.tx(["players", "playerStats"], "readwrite");
 
                     // See if imported roster has draft picks included. If so, create less than 70 (scaled for number of teams)
                     createUndrafted1 = Math.round(70 * g.numTeams / 30);
@@ -239,7 +237,7 @@ define(["dao", "db", "globals", "ui", "core/draft", "core/finances", "core/playe
                         draft.genPlayers(tx, g.PLAYER.UNDRAFTED_3, scoutingRank, createUndrafted3);
                     }
 
-                    tx.oncomplete = function () {
+                    tx.complete().then(function () {
                         if (skipNewPhase) {
                             // Game already in progress, just start it
                             cb(g.lid);
@@ -260,7 +258,7 @@ define(["dao", "db", "globals", "ui", "core/draft", "core/finances", "core/playe
                                 helpers.bbgmPing("league");
                             });
                         }
-                    };
+                    });
                 };
 
                 cbAfterEachPlayer = function () {
@@ -274,7 +272,7 @@ define(["dao", "db", "globals", "ui", "core/draft", "core/finances", "core/playe
                     players = leagueFile.players;
 
                     // Use pre-generated players, filling in attributes as needed
-                    tx = g.dbl.transaction(["players", "playerStats"], "readwrite");  // Transaction used above is closed by now
+                    tx = dao.tx(["players", "playerStats"], "readwrite");  // Transaction used above is closed by now
 
                     // Does the player want the rosters randomized?
                     if (randomizeRosters) {
@@ -305,7 +303,7 @@ define(["dao", "db", "globals", "ui", "core/draft", "core/finances", "core/playe
                             delete p.stats;
 
                             player.updateValues(tx, p, playerStats.reverse(), function (p) {
-                                dao.players.put({ot: tx, value: p}).then(function (pid) {
+                                tx.players.put({ot: tx, value: p}).then(function (pid) {
                                     var addStatsRows, i;
 
                                     // When adding a player, this is the only way to know the pid
@@ -339,7 +337,7 @@ define(["dao", "db", "globals", "ui", "core/draft", "core/finances", "core/playe
                                             // Delete psid because it can cause problems due to interaction addStatsRow above
                                             delete ps.psid;
 
-                                            tx.objectStore("playerStats").add(ps).onsuccess = function () {
+                                            tx.playerStats.add(ps).onsuccess = function () {
                                                 // On to the next one
                                                 if (playerStats.length > 0) {
                                                     addStatsRows();
