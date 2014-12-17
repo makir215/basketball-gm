@@ -15,6 +15,7 @@ instead of dao.os.whatever({ot: aaa}) why not do tx.os.whatever()?
   how to pass tx to object store functions?
     can now access this.tx inside these functions
   how to return tx back to null when done?
+  remove all ot references, just use tx everywhere
 
 use promises pervasively
 

@@ -1269,7 +1269,7 @@ console.log(dv);*/
                             player.addStatsRow(tx, p, g.phase === g.PHASE.PLAYOFFS, function (p) {
                                 p = player.setContract(p, p.contract, true);
                                 p.gamesUntilTradable = 15;
-                                dao.players.put({ot: tx, value: p});
+                                tx.players.put(p);
                             });
 
                             numPlayersOnRoster += 1;

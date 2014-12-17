@@ -23,7 +23,7 @@ define(["dao", "db", "globals", "ui", "core/player", "core/team", "lib/bluebird"
 
                 strategies = _.pluck(teams, "strategy");
 
-                tx = g.dbl.transaction(["players", "playerStats", "releasedPlayers"], "readwrite");
+                tx = dao.tx(["players", "playerStats", "releasedPlayers"], "readwrite");
 
                 tx.objectStore("players").index("tid").getAll(g.PLAYER.FREE_AGENT).onsuccess = function (event) {
                     var i, players, signTeam, tids;
@@ -89,7 +89,7 @@ define(["dao", "db", "globals", "ui", "core/player", "core/team", "lib/bluebird"
                                 afterPickPlayer = function (p) {
                                     p = player.setContract(p, p.contract, true);
                                     p.gamesUntilTradable = 15;
-                                    dao.players.put({ot: tx, value: p});
+                                    tx.players.put(p);
                                     team.rosterAutoSort(tx, tid).then(function () {
                                         if (ti <= tids.length) {
                                             signTeam(ti + 1);

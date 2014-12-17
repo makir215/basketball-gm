@@ -303,7 +303,7 @@ define(["dao", "db", "globals", "ui", "core/draft", "core/finances", "core/playe
                             delete p.stats;
 
                             player.updateValues(tx, p, playerStats.reverse(), function (p) {
-                                tx.players.put({ot: tx, value: p}).then(function (pid) {
+                                tx.players.put(p).then(function (pid) {
                                     var addStatsRows, i;
 
                                     // When adding a player, this is the only way to know the pid
@@ -385,7 +385,7 @@ define(["dao", "db", "globals", "ui", "core/draft", "core/finances", "core/playe
                                 p = player.bonus(p, -15);
                             }
 
-                            // Hack to account for player.addStatsRow being called after dao.players.put - manually assign statsTids
+                            // Hack to account for player.addStatsRow being called after tx.players.put - manually assign statsTids
                             if (p.tid >= 0) {
                                 p.statsTids = [p.tid];
                             }
@@ -404,7 +404,7 @@ define(["dao", "db", "globals", "ui", "core/draft", "core/finances", "core/playe
                                 if (t2 === g.PLAYER.FREE_AGENT) {
                                     player.addToFreeAgents(tx, p, null, baseMoods, cbAfterEachPlayer);
                                 } else {
-                                    dao.players.put({ot: tx, value: p}).then(function (pid) {
+                                    tx.players.put(p).then(function (pid) {
                                         // When adding a player, this is the only way to know the pid
                                         p.pid = pid;
 

@@ -95,6 +95,9 @@ define(["globals", "lib/bluebird", "lib/jquery", "util/helpers"], function (g, P
         };
 
         methods.add = function (value) {
+console.log("add");
+console.log(value);
+if (value.ot !== undefined) { debugger; }
             return new Promise(function (resolve, reject) {
                 getObjectStore(g[dbmOrDbl], this.tx, objectStore, objectStore, "readwrite").add(value).onsuccess = function (event) {
                     resolve(event.target.result);
@@ -103,6 +106,9 @@ define(["globals", "lib/bluebird", "lib/jquery", "util/helpers"], function (g, P
         };
 
         methods.put = function (value) {
+console.log("put");
+console.log(value);
+if (value.ot !== undefined) { debugger; }
             return new Promise(function (resolve, reject) {
                 getObjectStore(g[dbmOrDbl], this.tx, objectStore, objectStore, "readwrite").put(value).onsuccess = function (event) {
                     resolve(event.target.result);
